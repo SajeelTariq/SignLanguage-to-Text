@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Sign Language Translator</title>
+</head>
+<body>
+    <h1>Welcome to Sign Language Translator</h1>
+    <div>
+        <button class="button" onclick="window.location.href='/sign-to-text'">Convert Sign Language to Text</button>
+        <button class="button" onclick="window.location.href='/text-to-sign'">Convert Speech/Text to Sign Language</button>
+    </div>
+</body>
+</html>

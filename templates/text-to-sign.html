@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <title>Text to Sign Language</title>
+  </head>
+  <body>
+    <h1>Text to Sign Language</h1>
+    <div style="display: flex; flex-direction: column; align-items: center">
+      <div style="display: flex; align-items: center; margin-top: 20px">
+        <input type="text" id="inputText" placeholder="Type text here" />
+        <button onclick="startSpeechRecognition()">🎤</button>
+        <!-- Submit button -->
+        <button onclick="submitText()">Submit</button>
+      </div>
+      <div id="outputImages" style="margin-top: 20px">
+        <!-- Sign language images will appear here -->
+        <p>Sign language images here</p>
+      </div>
+    </div>
+
+    <script>
+      function startSpeechRecognition() {
+        if ("webkitSpeechRecognition" in window) {
+          const recognition = new webkitSpeechRecognition();
+          recognition.lang = "en-US";
+          recognition.onresult = function (event) {
+            document.getElementById("inputText").value =
+              event.results[0][0].transcript;
+          };
+          recognition.start();
+        } else {
+          alert("Speech Recognition not supported in this browser.");
+        }
+      }
+
+      async function submitText() {
+        const text = document.getElementById("inputText").value;
+        if (!text) {
+          alert("Please type some text to submit!");
+          return;
+        }
+
+        try {
+          const response = await fetch("/convert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            displaySignLanguageImages(data.images);
+          } else {
+            alert("Error: Could not process text.");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("An error occurred while processing the text.");
+        }
+      }
+
+      function displaySignLanguageImages(images) {
+        const outputDiv = document.getElementById("outputImages");
+        outputDiv.innerHTML = ""; // Clear previous images
+        images.forEach((img) => {
+          const imgElement = document.createElement("img");
+          imgElement.src = img;
+          imgElement.alt = "Sign Language Image";
+          imgElement.style.width = "150px";
+          imgElement.style.margin = "10px";
+          outputDiv.appendChild(imgElement);
+        });
+      }
+    </script>
+  </body>
+</html>

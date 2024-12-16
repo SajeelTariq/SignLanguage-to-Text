@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <title>Sign to Text</title>
+  </head>
+  <body>
+    <h1>Sign Language to Text</h1>
+    <div style="display: flex; flex-direction: column; align-items: center">
+      <!-- Display live camera feed -->
+      <div
+        id="camera"
+        style="
+          width: 640px;
+          height: 480px;
+          margin-bottom: 20px;
+          border: 1px solid black;
+        "
+      >
+        <img
+          src="{{ url_for('camera_feed') }}"
+          alt="Camera Feed"
+          style="width: 100%; height: 100%"
+        />
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center">
+        <!-- Display current prediction -->
+        <div style="margin-top: 20px">
+          <h3>Current Prediction: <span id="currentPrediction">None</span></h3>
+          <h3>Press 'N' to confirm word</h3>
+        </div>
+      </div>
+
+      <!-- Detected text -->
+      <div style="display: flex; align-items: center; margin-top: 20px">
+        <input
+          type="text"
+          id="outputText"
+          placeholder="Detected text will appear here"
+          readonly
+        />
+        <button onclick="speakText()">🔊</button>
+      </div>
+
+      <!-- Predict button -->
+      <div style="margin-top: 20px">
+        <button id="predictButton" onclick="predictSentence()">Predict</button>
+        <button id="refreshButton" onclick="refreshPage()">
+          Predict Again
+        </button>
+      </div>
+    </div>
+
+    <script>
+      async function predictSentence() {
+        // Stop the camera feed
+        await fetch("/stop_camera", { method: "POST" });
+
+        // Fetch the detected and corrected sentence
+        const response = await fetch("/get_sentence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await response.json();
+
+        // Display the corrected sentence
+        document.getElementById("outputText").value = data.corrected;
+      }
+
+      function speakText() {
+        const text = document.getElementById("outputText").value;
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+      }
+
+      function refreshPage() {
+        window.location.reload(); // Reloads the current page
+      }
+
+      async function fetchCurrentPrediction() {
+        const response = await fetch("/get_current_prediction");
+        const data = await response.json();
+        document.getElementById("currentPrediction").innerText =
+          data.current_prediction || "None";
+      }
+
+      // Listen for keypress events
+      document.addEventListener("keydown", async (event) => {
+        // Check if the 'n' key is pressed
+        if (event.key === "n") {
+          await confirmPrediction(); // Call confirmPrediction when 'n' is pressed
+        }
+      });
+
+      let gestureStartTime = null; // Variable to track when the gesture starts
+      let gestureDurationThreshold = 200; // 0.2 seconds (200 milliseconds)
+      let currentGesture = null; // Variable to store the current detected gesture
+
+      // Function to start tracking the gesture time
+      function startGestureTracking() {
+        // Start time tracking when a gesture is first detected
+        gestureStartTime = new Date().getTime();
+      }
+
+      // Function to check if the current gesture is valid
+      async function checkGestureDuration() {
+        if (gestureStartTime !== null) {
+          const currentTime = new Date().getTime();
+          const duration = currentTime - gestureStartTime;
+
+          // If the gesture has been held for longer than the threshold, confirm the word
+          if (duration > gestureDurationThreshold) {
+            // Proceed to confirm the word and add it to the sentence
+            await confirmPrediction();
+          }
+        }
+      }
+
+      // Call this function when a gesture is detected (e.g., when a sign is recognized)
+      async function handleNewGesture(gesture) {
+        if (currentGesture !== gesture) {
+          // If the gesture changes, reset the timer and update the current gesture
+          currentGesture = gesture;
+          gestureStartTime = null; // Reset the start time for the new gesture
+          startGestureTracking(); // Start tracking for the new gesture
+        }
+
+        // Continuously check if the gesture has been held for the required duration
+        checkGestureDuration();
+      }
+
+      // Function to confirm the prediction (append the word to the sentence)
+      async function confirmPrediction() {
+        const response = await fetch("/append_word", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await response.json();
+
+        // Update the displayed text with the corrected sentence
+        document.getElementById("outputText").value = data.sentence;
+      }
+
+      // Reset the gesture tracking when no gesture is detected (optional)
+      function resetGestureTracking() {
+        gestureStartTime = null;
+        currentGesture = null;
+      }
+
+      // Poll for the current prediction every second
+      setInterval(fetchCurrentPrediction, 1000);
+    </script>
+  </body>
+</html>
